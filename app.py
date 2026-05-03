@@ -1,6 +1,12 @@
 from flask import Flask, request, jsonify
 import os
 
+DUMMY_SNMP = {
+    "1.3.6.1.2.1.1.1.0": "Linux Demo System",
+    "1.3.6.1.2.1.1.5.0": "My-Test-Device",
+    "1.3.6.1.2.1.1.3.0": "123456 uptime",
+}
+
 app = Flask(__name__)
 
 @app.route('/')
@@ -13,7 +19,6 @@ def snmp_get():
     oid = request.args.get('oid', '1.3.6.1.2.1.1.1.0')
 
     try:
-        # Import INSIDE function (important fix)
         from pysnmp.hlapi import (
             SnmpEngine,
             CommunityData,
@@ -34,31 +39,30 @@ def snmp_get():
 
         errorIndication, errorStatus, errorIndex, varBinds = next(iterator)
 
-        if errorIndication:
+        # 🔥 If SNMP fails → fallback to dummy
+        if errorIndication or errorStatus:
+            value = DUMMY_SNMP.get(oid, "Unknown OID (simulated)")
             return jsonify({
-                "result": [
-                    "SNMPv2-MIB::sysDescr.0 = Linux demo device (simulated)"
-                ],
-                "note": "Simulated response due to network restrictions"
+                "result": [f"{oid} = {value}"],
+                "source": "mock"
             })
 
-        elif errorStatus:
-            return jsonify({"error": errorStatus.prettyPrint()})
+        # ✅ Real SNMP success
+        result = []
+        for varBind in varBinds:
+            result.append(' = '.join([x.prettyPrint() for x in varBind]))
 
-        else:
-            result = []
-            for varBind in varBinds:
-                result.append(' = '.join([x.prettyPrint() for x in varBind]))
-
-            return jsonify({"result": result})
-
-    except Exception as e:
-        # fallback for demo
         return jsonify({
-            "result": [
-                "SNMPv2-MIB::sysDescr.0 = Linux demo device (simulated)"
-            ],
-            "note": "Simulated response due to network restrictions"
+            "result": result,
+            "source": "real"
+        })
+
+    except Exception:
+        # 🔥 Hard fallback (if pysnmp crashes)
+        value = DUMMY_SNMP.get(oid, "Unknown OID (simulated)")
+        return jsonify({
+            "result": [f"{oid} = {value}"],
+            "source": "mock"
         })
 
 # Required for local fallback (Render ignores this)
