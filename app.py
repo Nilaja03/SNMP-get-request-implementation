@@ -48,13 +48,13 @@ def snmp_get():
             return jsonify({"result": result})
 
     except Exception as e:
-    # fallback for demo
-    return jsonify({
-        "result": [
-            "SNMPv2-MIB::sysDescr.0 = Linux demo device (simulated)"
-        ],
-        "note": "Simulated response due to network restrictions"
-    })
+        # fallback for demo
+        return jsonify({
+            "result": [
+                "SNMPv2-MIB::sysDescr.0 = Linux demo device (simulated)"
+            ],
+            "note": "Simulated response due to network restrictions"
+        })
 
 # Required for local fallback (Render ignores this)
 if __name__ == "__main__":
